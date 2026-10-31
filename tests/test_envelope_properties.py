@@ -28,9 +28,19 @@ REQUIRED_KEYS = frozenset(
 )
 
 commands = st.sampled_from(
-    ["validate", "build", "resume", "resolve", "finalize-on-merge", "epic-close", "status"]
+    [
+        "validate",
+        "build",
+        "resume",
+        "resolve",
+        "finalize-on-merge",
+        "epic-close",
+        "status",
+    ]
 )
-reasons = st.text(alphabet=st.characters(blacklist_categories=("Cs",)), min_size=1, max_size=64)
+reasons = st.text(
+    alphabet=st.characters(blacklist_categories=("Cs",)), min_size=1, max_size=64
+)
 optional_str = st.one_of(st.none(), st.text(max_size=32))
 optional_publish = st.one_of(
     st.none(),
