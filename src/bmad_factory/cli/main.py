@@ -5,6 +5,7 @@ from __future__ import annotations
 import argparse
 import sys
 from collections.abc import Sequence
+from pathlib import Path
 from typing import NoReturn
 
 from bmad_factory.application.envelope import EXIT_USAGE_ERROR, print_envelope
@@ -25,7 +26,10 @@ def _build_parser() -> _CliParser:
 
     validate_parser = subparsers.add_parser(
         "validate",
-        help="Happy-path preflight stub (no ticket-tree or Store checks yet)",
+        help=(
+            "Preflight the parent root where top-level initiative-* / sprint "
+            "markers are looked for (not src/)"
+        ),
     )
     validate_parser.add_argument(
         "--json",
@@ -33,8 +37,34 @@ def _build_parser() -> _CliParser:
         dest="json_out",
         help="Emit the normative JSON envelope on stdout",
     )
+    validate_parser.add_argument(
+        "--path",
+        default=None,
+        metavar="DIR",
+        help=(
+            "Parent root where top-level initiative-* / sprint markers are "
+            "looked for (default: cwd; not src/)"
+        ),
+    )
 
     return parser
+
+
+def _resolve_validate_root(raw: str | None) -> Path:
+    """Resolve --path (or cwd) to an absolute directory; exit 60 on bad path."""
+    candidate = Path(raw) if raw is not None else Path.cwd()
+    try:
+        resolved = candidate.resolve()
+    except OSError as exc:
+        print(f"bmad-factory: error: invalid --path: {exc}", file=sys.stderr)
+        raise SystemExit(EXIT_USAGE_ERROR) from None
+    if not resolved.is_dir():
+        print(
+            f"bmad-factory: error: --path is missing or not a directory: {candidate}",
+            file=sys.stderr,
+        )
+        raise SystemExit(EXIT_USAGE_ERROR)
+    return resolved
 
 
 def main(argv: Sequence[str] | None = None) -> None:
@@ -43,7 +73,8 @@ def main(argv: Sequence[str] | None = None) -> None:
     args = parser.parse_args(list(argv) if argv is not None else None)
 
     if args.command == "validate":
-        envelope = run_validate()
+        root = _resolve_validate_root(args.path)
+        envelope = run_validate(root)
         if args.json_out:
             print_envelope(envelope)
         raise SystemExit(int(envelope["exit_code"]))
