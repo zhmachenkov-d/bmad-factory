@@ -7,9 +7,12 @@ import sys
 from typing import Any, NoReturn
 
 EXIT_SUCCESS = 0
+EXIT_PREFLIGHT = 40
 EXIT_USAGE_ERROR = 60
 
 REASON_SUCCESS = "success"
+REASON_INVALID_MODE = "invalid-mode"
+REASON_METHOD_FLOOR = "method-floor"
 REASON_USAGE_ERROR = "usage-error"
 
 Envelope = dict[str, Any]
@@ -54,6 +57,17 @@ def success_envelope(command: str) -> Envelope:
         command=command,
         exit_code=EXIT_SUCCESS,
         reason=REASON_SUCCESS,
+        epic_complete=False,
+    )
+
+
+def preflight_failure_envelope(command: str, reason: str) -> Envelope:
+    """Preflight reject envelope: ok false, exit 40, nullables null."""
+    return build_envelope(
+        ok=False,
+        command=command,
+        exit_code=EXIT_PREFLIGHT,
+        reason=reason,
         epic_complete=False,
     )
 

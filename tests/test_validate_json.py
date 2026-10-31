@@ -1,8 +1,9 @@
-"""Happy-path validate --json I/O matrix."""
+"""Happy-path validate --json I/O matrix (in-floor fixture)."""
 
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 import pytest
 
@@ -18,6 +19,9 @@ NULLABLE_FIELDS = (
     "message",
 )
 
+FIXTURES = Path(__file__).resolve().parent / "fixtures" / "validate"
+IN_FLOOR = FIXTURES / "in-floor"
+
 
 def _parse_single_json_object(stdout: str) -> dict[object, object]:
     text = stdout.removesuffix("\n")
@@ -29,7 +33,7 @@ def _parse_single_json_object(stdout: str) -> dict[object, object]:
 
 def test_validate_json_happy_path(capsys: pytest.CaptureFixture[str]) -> None:
     with pytest.raises(SystemExit) as exc_info:
-        main(["validate", "--json"])
+        main(["validate", "--json", "--path", str(IN_FLOOR)])
 
     assert exc_info.value.code == 0
     captured = capsys.readouterr()
