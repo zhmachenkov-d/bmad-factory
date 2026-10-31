@@ -149,6 +149,10 @@ activemq-data/
 # SageMath parsed files
 *.sage.py
 
+# mutmut working tree + local quality artifacts
+mutants/
+.ci/out/
+
 # Environments
 .env
 .envrc
