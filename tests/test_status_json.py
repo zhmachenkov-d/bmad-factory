@@ -43,3 +43,12 @@ def test_status_json_happy_path(capsys: pytest.CaptureFixture[str]) -> None:
     assert data["epic_complete"] is False
     for field in NULLABLE_FIELDS:
         assert data[field] is None
+
+
+def test_status_without_json_empty_stdout(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["status"])
+
+    assert exc_info.value.code == 0
+    captured = capsys.readouterr()
+    assert captured.out == ""

@@ -78,6 +78,7 @@ def test_invalid_mode_json(
         "below-floor/blank-slug",
         "below-floor/missing-epic-dir",
         "below-floor/missing-md",
+        "below-floor/empty-epic-list",
     ],
 )
 def test_method_floor_json(
