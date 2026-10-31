@@ -23,6 +23,7 @@ Product repository for bmad-factory. Python 3.14 with uv. Planning and BMad arti
 - Stack: Python 3.14 + uv. Prefer `uv run …` over bare tool invocations.
 - Lint / type / unit+property tests:
   - `uv run ruff check src tests`
+  - `uv run ruff format --check src tests`
   - `uv run mypy src`
   - `uv run pytest`
 - AST-diff (Semgrep, diff-aware when a base commit is known):

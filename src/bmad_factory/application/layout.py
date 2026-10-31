@@ -53,7 +53,7 @@ def _initiative_is_in_floor(initiative_dir: Path, slug: str) -> bool:
     try:
         raw = tickets_toml.read_bytes()
         data = tomllib.loads(raw.decode("utf-8"))
-    except (OSError, UnicodeDecodeError, tomllib.TOMLDecodeError):
+    except OSError, UnicodeDecodeError, tomllib.TOMLDecodeError:
         return False
 
     epics = data.get("epic")

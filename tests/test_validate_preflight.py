@@ -158,7 +158,9 @@ def test_preflight_without_json_no_stdout_json(
     assert "{" not in captured.out
 
 
-def test_bad_path_missing_exits_60(capsys: pytest.CaptureFixture[str], tmp_path: Path) -> None:
+def test_bad_path_missing_exits_60(
+    capsys: pytest.CaptureFixture[str], tmp_path: Path
+) -> None:
     missing = tmp_path / "does-not-exist"
     with pytest.raises(SystemExit) as exc_info:
         main(["validate", "--json", "--path", str(missing)])
