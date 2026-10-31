@@ -1,0 +1,16 @@
+# Local quality hooks: Semgrep + diff-scoped mutmut (no SARIF upload required).
+repos:
+  - repo: local
+    hooks:
+      - id: semgrep
+        name: semgrep (AST-diff / Python rules)
+        entry: uv run python .ci/run_semgrep.py
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: mutmut-diff
+        name: mutmut (diff-scoped)
+        entry: uv run python .ci/run_mutmut_diff.py
+        language: system
+        pass_filenames: false
+        types: [python]

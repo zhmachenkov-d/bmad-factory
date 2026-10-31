@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-30 against bf9284c. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-10-31 against quality CI wiring (Semgrep + mutmut + Hypothesis). Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## bmad-factory
 
@@ -16,18 +16,32 @@ Product repository for bmad-factory. Python 3.14 with uv. Planning and BMad arti
 ## Where things are
 
 - This checkout is a worktree under the BMad workspace; open agent sessions from the workspace root when plans and code must be in one session.
-- Product source and tooling will land in this repository once initialized — there is no application tree yet.
+- Package layout: `src/bmad_factory/` (cli, application, …), tests under `tests/`, quality glue under `.ci/` (not importable product code).
 
 ## Running and verifying
 
-- Stack decision: Python 3.14 + uv. After `pyproject.toml` exists, prefer `uv run …` over bare tool invocations; treat exact commands below as TODO until verified on refresh.
-- TODO: document and verify `uv run ruff`, `uv run mypy`, and `uv run pytest` (or the project's chosen test entry) once the project is initialized.
-- TODO: choose and wire AST-diff and mutation-testing tools into CI/hooks with SARIF upload to GitHub; document exact invocations on refresh (candidates later — not earn-green until ready).
-- Until CI/hooks enforce them, run ruff and mypy on changed Python before opening a PR.
+- Stack: Python 3.14 + uv. Prefer `uv run …` over bare tool invocations.
+- Lint / type / unit+property tests:
+  - `uv run ruff check src tests`
+  - `uv run mypy src`
+  - `uv run pytest`
+- AST-diff (Semgrep, diff-aware when a base commit is known):
+  - Local / hooks: `uv run python .ci/run_semgrep.py`
+  - With PR base: `uv run python .ci/run_semgrep.py --baseline-commit <base-sha>`
+  - Compare vs in-repo baseline: `uv run python .ci/run_semgrep.py --compare-baseline`
+- Mutation testing (mutmut):
+  - Diff-scoped (changed `src/` only; survivors do not fail): `uv run python .ci/run_mutmut_diff.py` (CI: add `--base-ref <base-sha>`)
+  - Full suite vs baseline: `uv run python .ci/run_mutmut_full.py --compare-baseline`
+- SARIF upload (CI only — GitHub code scanning): workflows call `github/codeql-action/upload-sarif` on `.ci/out/semgrep.sarif`, `.ci/out/mutmut-diff.sarif`, and `.ci/out/mutmut-full.sarif`. Locally, the same analysis commands write those SARIF files under `.ci/out/` without uploading.
+- Owner notify on worsen: one aggregated Slack payload via `.ci/slack_notify.py` + `slackapi/slack-github-action` incoming-webhook (`SLACK_WEBHOOK_URL`). Dry-run / HITL fixture: `uv run python .ci/run_worsen_fixture.py`.
+- Baseline bump rule: see `.ci/README.md` — only bump `.ci/baselines/` when intentionally accepting a new Semgrep finding or a lower mutmut score.
+- Pre-commit: `uv run pre-commit install` then hooks run Semgrep + diff-scoped mutmut on Python changes.
+- Further Hypothesis PBTs: add only when earned (invariants / parsing / generators); envelope field invariants already have an earned module in `tests/test_envelope_properties.py`.
 
 ## Conventions that differ from defaults
 
 - Format and lint with ruff; typecheck with mypy — do not substitute other formatters/typecheckers for project Python.
 - Property-based tests use Hypothesis when added.
+- Quality CI lives in this product repo’s `.github/workflows/` (not Operator BMAD Action YAML).
 
 <!-- /bmad:context -->
