@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import json
 import sys
-from typing import Any, NoReturn
+from typing import Any
 
 EXIT_SUCCESS = 0
 EXIT_PREFLIGHT = 40
@@ -80,8 +80,3 @@ def envelope_json(envelope: Envelope) -> str:
 def print_envelope(envelope: Envelope) -> None:
     """Write exactly one JSON object to stdout (with optional trailing newline)."""
     sys.stdout.write(envelope_json(envelope) + "\n")
-
-
-def exit_with_code(exit_code: int) -> NoReturn:
-    """Terminate the process with the given exit code."""
-    raise SystemExit(exit_code)

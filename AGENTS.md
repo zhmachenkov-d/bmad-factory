@@ -11,7 +11,7 @@ Product repository for bmad-factory. Python 3.14 with uv. Planning and BMad arti
 - Use Conventional Commits for every commit subject, PR title, and merge/squash subject.
 - Never commit secrets or `.env` (`.env` is gitignored; still do not force-add it).
 - New code ships with tests. Add Hypothesis property-based tests when they earn their keep (invariants, parsing, generators) — not by default for every change.
-- CI (and local hooks where practical) must run AST-diff analysis and mutation testing, and publish both as SARIF for GitHub code scanning / check annotations — do not ship a pipeline that only runs unit tests. Prefer mature standalone tools; do not depend on earn-green until it is ready.
+- CI must run AST-diff analysis and mutation testing and publish both as SARIF for GitHub code scanning / check annotations; local hooks where practical run the same analysis without uploading — do not ship a pipeline that only runs unit tests. Prefer mature standalone tools; do not depend on earn-green until it is ready.
 
 ## Where things are
 
