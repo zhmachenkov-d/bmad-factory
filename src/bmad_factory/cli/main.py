@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import NoReturn
 
 from bmad_factory.application.envelope import EXIT_USAGE_ERROR, print_envelope
+from bmad_factory.application.status import run_status
 from bmad_factory.application.validate import run_validate
 
 
@@ -47,6 +48,17 @@ def _build_parser() -> _CliParser:
         ),
     )
 
+    status_parser = subparsers.add_parser(
+        "status",
+        help="Status-only viewer (no interactive TUI)",
+    )
+    status_parser.add_argument(
+        "--json",
+        action="store_true",
+        dest="json_out",
+        help="Emit the normative JSON envelope on stdout",
+    )
+
     return parser
 
 
@@ -75,6 +87,12 @@ def main(argv: Sequence[str] | None = None) -> None:
     if args.command == "validate":
         root = _resolve_validate_root(args.path)
         envelope = run_validate(root)
+        if args.json_out:
+            print_envelope(envelope)
+        raise SystemExit(int(envelope["exit_code"]))
+
+    if args.command == "status":
+        envelope = run_status()
         if args.json_out:
             print_envelope(envelope)
         raise SystemExit(int(envelope["exit_code"]))
