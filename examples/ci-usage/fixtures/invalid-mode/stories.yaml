@@ -1,0 +1,2 @@
+# Local reject demo: top-level stories.yaml markers are invalid-mode for bmad-factory.
+# validate --json --path against this directory exits 40 with reason=invalid-mode.

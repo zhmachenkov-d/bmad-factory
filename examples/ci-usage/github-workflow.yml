@@ -1,0 +1,57 @@
+# USAGE EXAMPLE ONLY — copy and adapt into your own repository.
+# This file is not a shipped product GitHub Action.
+# Product-repo quality workflows under .github/workflows/quality-*.yml are unrelated.
+#
+# Paste into one job. Branch CI on exit codes / --json, not log scraping.
+# Exit 40 from validate means preflight reject (invalid-mode or method-floor).
+
+name: bmad-factory usage example
+
+on:
+  workflow_dispatch:
+
+jobs:
+  bmad-factory-usage:
+    runs-on: ubuntu-latest
+    # Adapt: path or git URL of *bmad-factory package sources* (not the ticket-tree alone).
+    # Examples: ./_bmad-factory  |  git+https://github.com/EXAMPLE/bmad-factory.git
+    # Same-repo product checkout demo only: .
+    # After public PyPI: drop --from and run `uvx bmad-factory …`.
+    env:
+      BMAD_FACTORY_FROM: ./_bmad-factory
+    steps:
+      - uses: actions/checkout@v4
+        # This checkout is the Operator ticket-tree (validate --path .).
+
+      # Foreign ticket-tree: also obtain bmad-factory sources (second checkout, vendor
+      # path, or set BMAD_FACTORY_FROM to a git+URL and skip this step).
+      - name: Checkout bmad-factory package sources
+        uses: actions/checkout@v4
+        with:
+          # Adapt repository/ref to your bmad-factory package sources.
+          repository: EXAMPLE/bmad-factory
+          path: _bmad-factory
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Install bmad-factory
+        # Do not `uv sync` the ticket-tree alone — that does not install this CLI.
+        # Runnable pattern: uvx --from <bmad-factory sources> …
+        run: uvx --from "$BMAD_FACTORY_FROM" bmad-factory --help
+
+      - name: Validate ticket-tree preflight
+        # Exit 40 → typed preflight reject (reason=invalid-mode | method-floor in --json).
+        # Example reject demo (local): point --path at examples/ci-usage/fixtures/invalid-mode
+        # and expect exit 40 / reason=invalid-mode. In real CI, use your ticket-tree root.
+        run: uvx --from "$BMAD_FACTORY_FROM" bmad-factory validate --json --path .
+        continue-on-error: false
+
+      - name: Status viewer
+        run: uvx --from "$BMAD_FACTORY_FROM" bmad-factory status --json
+
+      # Later Invokes (not part of this example skeleton — add in your own workflow):
+      # - uvx --from "$BMAD_FACTORY_FROM" bmad-factory build --json
+      # - uvx --from "$BMAD_FACTORY_FROM" bmad-factory resume --json   # alias: resolve
+      # - uvx --from "$BMAD_FACTORY_FROM" bmad-factory finalize-on-merge --json
+      # - uvx --from "$BMAD_FACTORY_FROM" bmad-factory epic-close --json
