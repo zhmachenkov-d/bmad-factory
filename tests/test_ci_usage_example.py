@@ -5,7 +5,17 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
-REPO_ROOT = Path(__file__).resolve().parents[1]
+def _repo_root() -> Path:
+    """Real checkout root even when pytest runs under mutmut's mutants/ tree."""
+    tests_dir = Path(__file__).resolve().parent
+    parent = tests_dir.parent
+    # mutmut copies tests into mutants/tests/ but not examples/ or .github/
+    if parent.name == "mutants":
+        return parent.parent
+    return parent
+
+
+REPO_ROOT = _repo_root()
 EXAMPLES = REPO_ROOT / "examples" / "ci-usage"
 WORKFLOWS = REPO_ROOT / ".github" / "workflows"
 
