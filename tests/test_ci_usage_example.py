@@ -5,6 +5,7 @@ from __future__ import annotations
 import re
 from pathlib import Path
 
+
 def _repo_root() -> Path:
     """Real checkout root even when pytest runs under mutmut's mutants/ tree."""
     tests_dir = Path(__file__).resolve().parent
