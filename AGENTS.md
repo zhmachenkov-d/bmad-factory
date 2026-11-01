@@ -1,5 +1,5 @@
 <!-- bmad:context -->
-<!-- Verified 2026-10-31 against quality CI wiring (Semgrep + mutmut + Hypothesis). Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
+<!-- Verified 2026-11-01 against c1b46d5761ff3fba8bb6d6e14732ffa420ff49a9. Managed by bmad-project-context; edits inside this block are replaced on refresh. Keep anything you want preserved outside the markers. -->
 
 ## bmad-factory
 
@@ -21,7 +21,10 @@ Product repository for bmad-factory. Python 3.14 with uv. Planning and BMad arti
 ## Running and verifying
 
 - Stack: Python 3.14 + uv. Prefer `uv run …` over bare tool invocations.
-- Lint / type / unit+property tests:
+- Before committing Python changes, fix lint/format (do not skip even if hooks are installed):
+  - `uv run ruff check --fix src tests`
+  - `uv run ruff format src tests`
+- Lint / type / unit+property tests (CI / verify; check-only, no autofix):
   - `uv run ruff check src tests`
   - `uv run ruff format --check src tests`
   - `uv run mypy src`
@@ -36,7 +39,7 @@ Product repository for bmad-factory. Python 3.14 with uv. Planning and BMad arti
 - SARIF upload (CI only — GitHub code scanning): workflows call `github/codeql-action/upload-sarif` on `.ci/out/semgrep.sarif`, `.ci/out/mutmut-diff.sarif`, and `.ci/out/mutmut-full.sarif`. Locally, the same analysis commands write those SARIF files under `.ci/out/` without uploading.
 - Owner notify on worsen: one aggregated Slack payload via `.ci/slack_notify.py` + `slackapi/slack-github-action` incoming-webhook (`SLACK_WEBHOOK_URL`). Dry-run / HITL fixture: `uv run python .ci/run_worsen_fixture.py`.
 - Baseline bump rule: see `.ci/README.md` — only bump `.ci/baselines/` when intentionally accepting a new Semgrep finding or a lower mutmut score.
-- Pre-commit: `uv run pre-commit install` then hooks run Semgrep + diff-scoped mutmut on Python changes.
+- Pre-commit: `uv run pre-commit install` then hooks run ruff check --fix, ruff format, Semgrep, and diff-scoped mutmut on Python changes.
 - Further Hypothesis PBTs: add only when earned (invariants / parsing / generators); envelope field invariants already have an earned module in `tests/test_envelope_properties.py`.
 
 ## Conventions that differ from defaults
