@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 
 import pytest
+
 from bmad_factory.cli.main import main
 
 NULLABLE_FIELDS = (
