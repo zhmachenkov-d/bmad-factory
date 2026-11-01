@@ -189,6 +189,97 @@ def test_bad_path_not_directory_exits_60(
     assert "error" in captured.err.lower() or "usage" in captured.err.lower()
 
 
+def test_empty_path_exits_60(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--path", ""])
+
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err
+    assert "error" in captured.err.lower() or "usage" in captured.err.lower()
+
+
+def test_empty_path_json_exits_60_empty_stdout(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", ""])
+
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err
+    assert "error" in captured.err.lower() or "usage" in captured.err.lower()
+
+
+def test_unreadable_root_json_exits_60_empty_stdout(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "unreadable"
+    root.mkdir()
+    resolved = root.resolve()
+    real_iterdir = Path.iterdir
+
+    def fake_iterdir(self: Path) -> object:
+        if self.resolve() == resolved:
+            raise OSError("Permission denied")
+        return real_iterdir(self)
+
+    monkeypatch.setattr(Path, "iterdir", fake_iterdir)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(root)])
+
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err
+    assert "error" in captured.err.lower() or "usage" in captured.err.lower()
+
+
+_MARKER_NAMES = ("stories.yaml", "sprint-status.yaml", "epics.md")
+
+
+@pytest.mark.parametrize("marker", _MARKER_NAMES)
+def test_dangling_marker_symlink_is_invalid_mode(
+    marker: str,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    (tmp_path / marker).symlink_to(tmp_path / "missing-target")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(tmp_path)])
+
+    assert exc_info.value.code == 40
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    data = _parse_single_json_object(captured.out)
+    _assert_preflight_reject(data, reason="invalid-mode")
+
+
+@pytest.mark.parametrize("marker", _MARKER_NAMES)
+def test_directory_marker_symlink_not_invalid_mode(
+    marker: str,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "real-dir"
+    target.mkdir()
+    (tmp_path / marker).symlink_to(target)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(tmp_path)])
+
+    assert exc_info.value.code == 40
+    data = _parse_single_json_object(capsys.readouterr().out)
+    assert data["reason"] != "invalid-mode"
+    _assert_preflight_reject(data, reason="method-floor")
+
+
 def test_empty_slug_key_missing_is_method_floor(
     capsys: pytest.CaptureFixture[str],
     tmp_path: Path,

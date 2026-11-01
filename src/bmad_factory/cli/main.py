@@ -64,6 +64,9 @@ def _build_parser() -> _CliParser:
 
 def _resolve_validate_root(raw: str | None) -> Path:
     """Resolve --path (or cwd) to an absolute directory; exit 60 on bad path."""
+    if raw == "":
+        print("bmad-factory: error: --path must not be empty", file=sys.stderr)
+        raise SystemExit(EXIT_USAGE_ERROR)
     candidate = Path(raw) if raw is not None else Path.cwd()
     try:
         resolved = candidate.resolve()
@@ -76,6 +79,14 @@ def _resolve_validate_root(raw: str | None) -> Path:
             file=sys.stderr,
         )
         raise SystemExit(EXIT_USAGE_ERROR)
+    try:
+        list(resolved.iterdir())
+    except OSError as exc:
+        print(
+            f"bmad-factory: error: --path is not readable: {candidate}: {exc}",
+            file=sys.stderr,
+        )
+        raise SystemExit(EXIT_USAGE_ERROR) from None
     return resolved
 
 
