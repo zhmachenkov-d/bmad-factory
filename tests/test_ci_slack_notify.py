@@ -6,17 +6,9 @@ import json
 import sys
 from pathlib import Path
 
+from tests.repo_root import repo_root
 
-def _repo_root() -> Path:
-    """Real checkout root even when pytest runs under mutmut's mutants/ tree."""
-    tests_dir = Path(__file__).resolve().parent
-    parent = tests_dir.parent
-    if parent.name == "mutants":
-        return parent.parent
-    return parent
-
-
-_REPO_ROOT = _repo_root()
+_REPO_ROOT = repo_root()
 sys.path.insert(0, str(_REPO_ROOT / ".ci"))
 
 import slack_notify
@@ -28,11 +20,12 @@ def test_collect_factors_semgrep_mutmut_skip_and_missing(tmp_path: Path) -> None
     not_worsened = tmp_path / "ok.json"
     missing = tmp_path / "does-not-exist.json"
 
+    # current_count deliberately diverges from len(new_findings); n must use len.
     semgrep.write_text(
         json.dumps(
             {
                 "baseline_count": 0,
-                "current_count": 1,
+                "current_count": 5,
                 "new_findings": [
                     {
                         "check_id": "python.lang.security.audit.fixture",
@@ -40,7 +33,14 @@ def test_collect_factors_semgrep_mutmut_skip_and_missing(tmp_path: Path) -> None
                         "message": "fixture finding",
                         "path": "src/fixture.py",
                         "start_line": 1,
-                    }
+                    },
+                    {
+                        "check_id": "python.lang.security.audit.other",
+                        "id": "python.lang.security.audit.other|src/other.py|2",
+                        "message": "other finding",
+                        "path": "src/other.py",
+                        "start_line": 2,
+                    },
                 ],
                 "tool": "semgrep",
                 "worsened": True,
@@ -49,12 +49,13 @@ def test_collect_factors_semgrep_mutmut_skip_and_missing(tmp_path: Path) -> None
         encoding="utf-8",
     )
     # Omit threshold — Requirements: default threshold 1 when omitted.
+    # drop deliberately diverges from baseline_score - current_score.
     mutmut.write_text(
         json.dumps(
             {
                 "baseline_score": 80,
                 "current_score": 70,
-                "drop": 10,
+                "drop": 3,
                 "tool": "mutmut",
                 "worsened": True,
             }
@@ -74,6 +75,27 @@ def test_collect_factors_semgrep_mutmut_skip_and_missing(tmp_path: Path) -> None
 
     factors = slack_notify.collect_factors([semgrep, mutmut, not_worsened, missing])
     assert factors == [
-        "semgrep: 1 new finding(s) vs baseline",
-        "mutmut: score 80 → 70 (drop 10 ≥ 1)",
+        "semgrep: 2 new finding(s) vs baseline",
+        "mutmut: score 80 → 70 (drop 3 ≥ 1)",
+    ]
+
+
+def test_collect_factors_mutmut_explicit_threshold(tmp_path: Path) -> None:
+    mutmut = tmp_path / "mutmut-worsen.json"
+    mutmut.write_text(
+        json.dumps(
+            {
+                "baseline_score": 90,
+                "current_score": 80,
+                "drop": 10,
+                "threshold": 5,
+                "tool": "mutmut",
+                "worsened": True,
+            }
+        ),
+        encoding="utf-8",
+    )
+
+    assert slack_notify.collect_factors([mutmut]) == [
+        "mutmut: score 90 → 80 (drop 10 ≥ 5)",
     ]

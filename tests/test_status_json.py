@@ -1,11 +1,10 @@
-"""Happy-path status --json I/O matrix."""
+"""Status CLI I/O: --json envelope and bare status empty stdout."""
 
 from __future__ import annotations
 
 import json
 
 import pytest
-
 from bmad_factory.cli.main import main
 
 NULLABLE_FIELDS = (
@@ -52,3 +51,4 @@ def test_status_without_json_empty_stdout(capsys: pytest.CaptureFixture[str]) ->
     assert exc_info.value.code == 0
     captured = capsys.readouterr()
     assert captured.out == ""
+    assert captured.err == ""

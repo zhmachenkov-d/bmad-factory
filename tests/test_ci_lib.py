@@ -3,21 +3,12 @@
 from __future__ import annotations
 
 import sys
-from pathlib import Path
 
 import pytest
 
+from tests.repo_root import repo_root
 
-def _repo_root() -> Path:
-    """Real checkout root even when pytest runs under mutmut's mutants/ tree."""
-    tests_dir = Path(__file__).resolve().parent
-    parent = tests_dir.parent
-    if parent.name == "mutants":
-        return parent.parent
-    return parent
-
-
-_REPO_ROOT = _repo_root()
+_REPO_ROOT = repo_root()
 sys.path.insert(0, str(_REPO_ROOT / ".ci"))
 
 import lib
@@ -30,28 +21,41 @@ def test_finding_id_format() -> None:
 
 
 def test_findings_from_semgrep_json_multi_sorted() -> None:
+    # Same check_id, different paths: sort-by-check_id would keep input order
+    # (b then a); sort-by-id must put src/a.py before src/b.py.
     payload = {
         "results": [
             {
-                "check_id": "z.check",
+                "check_id": "same.rule",
                 "path": "src/b.py",
-                "start": {"line": 2},
-                "extra": {"message": "second"},
+                "start": {"line": 1},
+                "extra": {"message": "b"},
             },
             {
-                "check_id": "a.check",
+                "check_id": "same.rule",
                 "path": "src/a.py",
                 "start": {"line": 1},
-                "extra": {"message": "first"},
+                "extra": {"message": "a"},
             },
         ]
     }
     findings = lib.findings_from_semgrep_json(payload)
-    assert [f["id"] for f in findings] == [
-        "a.check|src/a.py|1",
-        "z.check|src/b.py|2",
+    assert findings == [
+        {
+            "id": "same.rule|src/a.py|1",
+            "check_id": "same.rule",
+            "path": "src/a.py",
+            "start_line": 1,
+            "message": "a",
+        },
+        {
+            "id": "same.rule|src/b.py|1",
+            "check_id": "same.rule",
+            "path": "src/b.py",
+            "start_line": 1,
+            "message": "b",
+        },
     ]
-    assert findings == sorted(findings, key=lambda f: f["id"])
 
 
 def test_findings_from_semgrep_json_empty() -> None:
@@ -63,6 +67,8 @@ def test_findings_from_semgrep_json_empty() -> None:
     ("stats", "expected"),
     [
         ({"total": 10, "skipped": 2, "killed": 6, "timeout": 1}, 87),
+        ({"total": 4, "skipped": 0, "killed": 0, "timeout": 2}, 50),
+        ({"total": 3, "skipped": 0, "killed": 3, "timeout": 0}, 100),
         ({"total": 5, "skipped": 5, "killed": 3, "timeout": 0}, 0),
         ({"total": 0, "skipped": 0, "killed": 0, "timeout": 0}, 0),
         ({"total": 3, "skipped": 5, "killed": 1, "timeout": 0}, 0),

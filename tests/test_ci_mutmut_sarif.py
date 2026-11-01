@@ -8,17 +8,9 @@ from pathlib import Path
 
 import pytest
 
+from tests.repo_root import repo_root
 
-def _repo_root() -> Path:
-    """Real checkout root even when pytest runs under mutmut's mutants/ tree."""
-    tests_dir = Path(__file__).resolve().parent
-    parent = tests_dir.parent
-    if parent.name == "mutants":
-        return parent.parent
-    return parent
-
-
-_REPO_ROOT = _repo_root()
+_REPO_ROOT = repo_root()
 sys.path.insert(0, str(_REPO_ROOT / ".ci"))
 
 import mutmut_to_sarif
