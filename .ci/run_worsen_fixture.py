@@ -38,7 +38,7 @@ def main(argv: list[str] | None = None) -> int:
         "worsened": True,
         "new_findings": [
             {
-                "id": "python.lang.security.audit.fixture|src/fixture.py|1",
+                "id": "python.lang.security.audit.fixture|src/fixture.py|fixture finding",
                 "check_id": "python.lang.security.audit.fixture",
                 "path": "src/fixture.py",
                 "start_line": 1,

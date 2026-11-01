@@ -8,7 +8,7 @@ the `bmad_factory` package.
 
 | File | Meaning |
 | --- | --- |
-| `semgrep-findings.json` | Accepted Semgrep finding ids (`check_id\|path\|start_line`) |
+| `semgrep-findings.json` | Accepted Semgrep finding ids (`check_id\|path\|message`) |
 | `mutmut-score.json` | Last accepted full mutmut integer score (+ counts) |
 
 **Intentional bump rule:** only update a baseline when the team accepts a new

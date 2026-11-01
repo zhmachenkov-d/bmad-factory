@@ -69,8 +69,8 @@ def git_changed_src_files(base_ref: str | None) -> list[str]:
     )
 
 
-def finding_id(check_id: str, path: str, start_line: int) -> str:
-    return f"{check_id}|{path}|{start_line}"
+def finding_id(check_id: str, path: str, message: str) -> str:
+    return f"{check_id}|{path}|{message}"
 
 
 def findings_from_semgrep_json(payload: dict[str, Any]) -> list[dict[str, Any]]:
@@ -79,13 +79,14 @@ def findings_from_semgrep_json(payload: dict[str, Any]) -> list[dict[str, Any]]:
         check_id = str(item.get("check_id", "unknown"))
         path = str(item.get("path", ""))
         start_line = int(item.get("start", {}).get("line", 0))
+        message = str(item.get("extra", {}).get("message", ""))
         findings.append(
             {
-                "id": finding_id(check_id, path, start_line),
+                "id": finding_id(check_id, path, message),
                 "check_id": check_id,
                 "path": path,
                 "start_line": start_line,
-                "message": str(item.get("extra", {}).get("message", "")),
+                "message": message,
             }
         )
     findings.sort(key=lambda f: f["id"])
@@ -149,12 +150,15 @@ def temporary_only_mutate(patterns: list[str]) -> Iterator[None]:
 
 
 def empty_sarif(tool_name: str) -> dict[str, Any]:
+    driver: dict[str, Any] = {"name": tool_name}
+    if tool_name == "mutmut":
+        driver["informationUri"] = "https://github.com/boxed/mutmut"
     return {
         "version": "2.1.0",
         "$schema": "https://json.schemastore.org/sarif-2.1.0.json",
         "runs": [
             {
-                "tool": {"driver": {"name": tool_name, "informationUri": "https://github.com/boxed/mutmut"}},
+                "tool": {"driver": driver},
                 "results": [],
             }
         ],
