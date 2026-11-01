@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import os
 import sys
 from collections.abc import Sequence
 from pathlib import Path
@@ -19,6 +20,12 @@ class _CliParser(argparse.ArgumentParser):
     def error(self, message: str) -> NoReturn:
         self.print_usage(sys.stderr)
         self.exit(EXIT_USAGE_ERROR, f"{self.prog}: error: {message}\n")
+
+
+def _usage_error(message: str) -> NoReturn:
+    """Exit 60 with a stable one-line stderr message (no usage banner)."""
+    print(f"bmad-factory: error: {message}", file=sys.stderr)
+    raise SystemExit(EXIT_USAGE_ERROR)
 
 
 def _build_parser() -> _CliParser:
@@ -64,29 +71,21 @@ def _build_parser() -> _CliParser:
 
 def _resolve_validate_root(raw: str | None) -> Path:
     """Resolve --path (or cwd) to an absolute directory; exit 60 on bad path."""
-    if raw == "":
-        print("bmad-factory: error: --path must not be empty", file=sys.stderr)
-        raise SystemExit(EXIT_USAGE_ERROR)
+    if raw is not None and raw.strip() == "":
+        _usage_error("--path must not be empty")
     candidate = Path(raw) if raw is not None else Path.cwd()
     try:
         resolved = candidate.resolve()
-    except OSError as exc:
-        print(f"bmad-factory: error: invalid --path: {exc}", file=sys.stderr)
-        raise SystemExit(EXIT_USAGE_ERROR) from None
+    except (OSError, ValueError):
+        _usage_error(f"--path is invalid: {candidate}")
     if not resolved.is_dir():
-        print(
-            f"bmad-factory: error: --path is missing or not a directory: {candidate}",
-            file=sys.stderr,
-        )
-        raise SystemExit(EXIT_USAGE_ERROR)
+        _usage_error(f"--path is missing or not a directory: {candidate}")
     try:
-        list(resolved.iterdir())
-    except OSError as exc:
-        print(
-            f"bmad-factory: error: --path is not readable: {candidate}: {exc}",
-            file=sys.stderr,
-        )
-        raise SystemExit(EXIT_USAGE_ERROR) from None
+        # Prove listability without materializing every entry as Path objects.
+        with os.scandir(resolved) as entries:
+            next(entries, None)
+    except OSError:
+        _usage_error(f"--path is not readable: {candidate}")
     return resolved
 
 

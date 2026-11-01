@@ -17,13 +17,18 @@ _INITIATIVE_PREFIX = "initiative-"
 
 
 def _is_invalid_mode_marker(path: Path) -> bool:
-    """True for a regular/file-symlink marker, or a dangling marker symlink.
+    """True for a non-directory marker (file, special file, or dangling symlink).
 
-    Directory-symlinks (even named as a marker) are not invalid-mode.
+    Plain directories and directory-symlinks (even named as a marker) are not
+    invalid-mode.
     """
+    if path.is_dir():
+        return False
     if path.is_file():
         return True
-    return path.is_symlink() and not path.exists()
+    if path.is_symlink():
+        return True
+    return path.exists()
 
 
 def detect_invalid_mode(root: Path) -> bool:
