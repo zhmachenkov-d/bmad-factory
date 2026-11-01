@@ -3,11 +3,22 @@
 from __future__ import annotations
 
 import json
+import os
+import shutil
+import stat
 from pathlib import Path
 
 import pytest
 
 from bmad_factory.cli.main import main
+
+
+def _symlink_or_skip(link: Path, target: Path | str) -> None:
+    try:
+        link.symlink_to(target)
+    except (OSError, NotImplementedError) as exc:
+        pytest.skip(f"symlinks unavailable: {exc}")
+
 
 NULLABLE_FIELDS = (
     "fault_class",
@@ -187,6 +198,185 @@ def test_bad_path_not_directory_exits_60(
     assert captured.out == ""
     assert captured.err
     assert "error" in captured.err.lower() or "usage" in captured.err.lower()
+
+
+@pytest.mark.parametrize("blank", ["", " ", "\t", "\n"])
+def test_empty_path_exits_60(
+    blank: str,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--path", blank])
+
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err
+    assert "must not be empty" in captured.err
+
+
+def test_empty_path_json_exits_60_empty_stdout(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", ""])
+
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err
+    assert "must not be empty" in captured.err
+
+
+def test_path_with_nul_exits_60(capsys: pytest.CaptureFixture[str]) -> None:
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", "bad\0path"])
+
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert captured.err
+    assert "error" in captured.err.lower()
+
+
+def _patch_unreadable_scandir(
+    monkeypatch: pytest.MonkeyPatch,
+    resolved: Path,
+) -> list[bool]:
+    """Force OSError on listability probe for ``resolved``; record hits."""
+    hits = [False]
+    real_scandir = os.scandir
+
+    def fake_scandir(path: object) -> object:
+        candidate = Path(path) if not isinstance(path, Path) else path
+        if candidate.resolve() == resolved:
+            hits[0] = True
+            raise OSError("Permission denied")
+        return real_scandir(path)
+
+    monkeypatch.setattr(os, "scandir", fake_scandir)
+    return hits
+
+
+def test_unreadable_root_exits_60(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "unreadable"
+    root.mkdir()
+    hits = _patch_unreadable_scandir(monkeypatch, root.resolve())
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--path", str(root)])
+
+    assert hits[0] is True
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "not readable" in captured.err
+
+
+def test_unreadable_root_json_exits_60_empty_stdout(
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "unreadable"
+    root.mkdir()
+    hits = _patch_unreadable_scandir(monkeypatch, root.resolve())
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(root)])
+
+    assert hits[0] is True
+    assert exc_info.value.code == 60
+    captured = capsys.readouterr()
+    assert captured.out == ""
+    assert "not readable" in captured.err
+
+
+_MARKER_NAMES = ("stories.yaml", "sprint-status.yaml", "epics.md")
+
+
+@pytest.mark.parametrize("marker", _MARKER_NAMES)
+@pytest.mark.parametrize(
+    "target",
+    [pytest.param(None, id="absolute"), pytest.param("missing-target", id="relative")],
+)
+def test_dangling_marker_symlink_is_invalid_mode(
+    marker: str,
+    target: str | None,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    link_target: Path | str = tmp_path / "missing-target" if target is None else target
+    _symlink_or_skip(tmp_path / marker, link_target)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(tmp_path)])
+
+    assert exc_info.value.code == 40
+    captured = capsys.readouterr()
+    assert captured.err == ""
+    data = _parse_single_json_object(captured.out)
+    _assert_preflight_reject(data, reason="invalid-mode")
+
+
+@pytest.mark.parametrize("marker", _MARKER_NAMES)
+def test_directory_marker_symlink_not_invalid_mode(
+    marker: str,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    target = tmp_path / "real-dir"
+    target.mkdir()
+    _symlink_or_skip(tmp_path / marker, target)
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(tmp_path)])
+
+    assert exc_info.value.code == 40
+    data = _parse_single_json_object(capsys.readouterr().out)
+    assert data["reason"] != "invalid-mode"
+    _assert_preflight_reject(data, reason="method-floor")
+
+
+@pytest.mark.parametrize("marker", _MARKER_NAMES)
+def test_dangling_marker_with_in_floor_sibling_is_invalid_mode(
+    marker: str,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    shutil.copytree(FIXTURES / "in-floor", tmp_path, dirs_exist_ok=True)
+    _symlink_or_skip(tmp_path / marker, "missing-target")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(tmp_path)])
+
+    assert exc_info.value.code == 40
+    data = _parse_single_json_object(capsys.readouterr().out)
+    _assert_preflight_reject(data, reason="invalid-mode")
+
+
+@pytest.mark.parametrize("marker", _MARKER_NAMES)
+def test_fifo_marker_is_invalid_mode(
+    marker: str,
+    capsys: pytest.CaptureFixture[str],
+    tmp_path: Path,
+) -> None:
+    fifo = tmp_path / marker
+    try:
+        os.mkfifo(fifo, mode=stat.S_IRUSR | stat.S_IWUSR)
+    except (AttributeError, OSError, NotImplementedError) as exc:
+        pytest.skip(f"mkfifo unavailable: {exc}")
+
+    with pytest.raises(SystemExit) as exc_info:
+        main(["validate", "--json", "--path", str(tmp_path)])
+
+    assert exc_info.value.code == 40
+    data = _parse_single_json_object(capsys.readouterr().out)
+    _assert_preflight_reject(data, reason="invalid-mode")
 
 
 def test_empty_slug_key_missing_is_method_floor(

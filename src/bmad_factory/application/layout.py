@@ -16,9 +16,24 @@ _INVALID_MODE_MARKERS = frozenset(
 _INITIATIVE_PREFIX = "initiative-"
 
 
+def _is_invalid_mode_marker(path: Path) -> bool:
+    """True for a non-directory marker (file, special file, or dangling symlink).
+
+    Plain directories and directory-symlinks (even named as a marker) are not
+    invalid-mode.
+    """
+    if path.is_dir():
+        return False
+    if path.is_file():
+        return True
+    if path.is_symlink():
+        return True
+    return path.exists()
+
+
 def detect_invalid_mode(root: Path) -> bool:
     """True if root's top level has any sprint/stories.yaml-mode marker."""
-    return any((root / name).is_file() for name in _INVALID_MODE_MARKERS)
+    return any(_is_invalid_mode_marker(root / name) for name in _INVALID_MODE_MARKERS)
 
 
 def is_in_floor(root: Path) -> bool:
