@@ -76,7 +76,7 @@ def _resolve_validate_root(raw: str | None) -> Path:
     candidate = Path(raw) if raw is not None else Path.cwd()
     try:
         resolved = candidate.resolve()
-    except (OSError, ValueError):
+    except OSError, ValueError:
         _usage_error(f"--path is invalid: {candidate}")
     if not resolved.is_dir():
         _usage_error(f"--path is missing or not a directory: {candidate}")
